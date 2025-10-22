@@ -1,0 +1,6 @@
+@DBooks.WebApi_HostAddress = http://localhost:5042
+
+GET {{DBooks.WebApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
