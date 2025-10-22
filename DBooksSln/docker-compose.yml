@@ -1,0 +1,28 @@
+version: '3.4'
+
+services:
+  dbooks-app-api:
+    image: dbooks-app-api
+    container_name: dbooks-app-api
+    build:
+      context: ./DBooks.WebApi
+      dockerfile: Dockerfile
+    ports:
+      - "8980:8080"
+    networks:
+      - mynetwork
+
+  dbooksappsqlserver:
+    image: mcr.microsoft.com/mssql/server:latest
+    container_name: dbooksappsqlserver
+    ports:
+      - "14330:1433"
+    environment:
+      - SA_PASSWORD=Abc@123456
+      - ACCEPT_EULA=Y
+    networks:
+      - mynetwork
+
+networks:
+  mynetwork:
+    driver: bridge

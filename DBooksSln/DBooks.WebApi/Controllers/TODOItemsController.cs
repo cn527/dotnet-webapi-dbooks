@@ -1,43 +1,107 @@
-﻿using Microsoft.AspNetCore.Mvc;
-
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using DBooks.WebApi.Models;
 
 namespace DBooks.WebApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class TODOItemsController : ControllerBase
+    public class TodoItemsController : ControllerBase
     {
-        // GET: api/<TODOItemsController>
+        private readonly TODOAppDbContext _context;
+
+        public TodoItemsController(TODOAppDbContext context)
+        {
+            _context = context;
+        }
+
+        // GET: api/TodoItems
         [HttpGet]
-        public IEnumerable<string> Get()
+        public async Task<ActionResult<IEnumerable<TodoItem>>> GetTodoItems()
         {
-            return new string[] { "value1", "value2" };
+            return await _context.TodoItems.ToListAsync();
         }
 
-        // GET api/<TODOItemsController>/5
+        // GET: api/TodoItems/5
         [HttpGet("{id}")]
-        public string Get(int id)
+        public async Task<ActionResult<TodoItem>> GetTodoItem(int id)
         {
-            return "value";
+            var todoItem = await _context.TodoItems.FindAsync(id);
+
+            if (todoItem == null)
+            {
+                return NotFound();
+            }
+
+            return todoItem;
         }
 
-        // POST api/<TODOItemsController>
-        [HttpPost]
-        public void Post([FromBody] string value)
-        {
-        }
-
-        // PUT api/<TODOItemsController>/5
+        // PUT: api/TodoItems/5
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public void Put(int id, [FromBody] string value)
+        public async Task<IActionResult> PutTodoItem(int id, TodoItem todoItem)
         {
+            if (id != todoItem.Id)
+            {
+                return BadRequest();
+            }
+
+            _context.Entry(todoItem).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!TodoItemExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            return NoContent();
         }
 
-        // DELETE api/<TODOItemsController>/5
-        [HttpDelete("{id}")]
-        public void Delete(int id)
+        // POST: api/TodoItems
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [HttpPost]
+        public async Task<ActionResult<TodoItem>> PostTodoItem(TodoItem todoItem)
         {
+            _context.TodoItems.Add(todoItem);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction("GetTodoItem", new { id = todoItem.Id }, todoItem);
+        }
+
+        // DELETE: api/TodoItems/5
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteTodoItem(int id)
+        {
+            var todoItem = await _context.TodoItems.FindAsync(id);
+            if (todoItem == null)
+            {
+                return NotFound();
+            }
+
+            _context.TodoItems.Remove(todoItem);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        private bool TodoItemExists(int id)
+        {
+            return _context.TodoItems.Any(e => e.Id == id);
         }
     }
 }
