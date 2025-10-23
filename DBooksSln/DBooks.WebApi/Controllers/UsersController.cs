@@ -1,107 +1,38 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
+﻿using DBooks.WebApi.Data;
+using DBooks.WebApi.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using DBooks.WebApi.Models;
 
-namespace DBooks.WebApi.Controllers
+[ApiController]
+[Route("api/[controller]")]
+public class UsersController(LibraryDbContext db) : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class UsersController : ControllerBase
+    [HttpGet] public async Task<IActionResult> Get() => Ok(await db.Users.AsNoTracking().ToListAsync());
+
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id) =>
+        await db.Users.FindAsync(id) is { } u ? Ok(u) : NotFound();
+
+    [HttpPost]
+    public async Task<IActionResult> Post(User u)
     {
-        private readonly TODOAppDbContext _context;
+        db.Users.Add(u); await db.SaveChangesAsync();
+        return CreatedAtAction(nameof(GetById), new { id = u.Id }, u);
+    }
 
-        public UsersController(TODOAppDbContext context)
-        {
-            _context = context;
-        }
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Put(int id, User u)
+    {
+        if (id != u.Id) return BadRequest();
+        db.Entry(u).State = EntityState.Modified;
+        await db.SaveChangesAsync(); return NoContent();
+    }
 
-        // GET: api/Users
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<User>>> GetUsers()
-        {
-            return await _context.Users.ToListAsync();
-        }
-
-        // GET: api/Users/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<User>> GetUser(int id)
-        {
-            var user = await _context.Users.FindAsync(id);
-
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            return user;
-        }
-
-        // PUT: api/Users/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutUser(int id, User user)
-        {
-            if (id != user.Id)
-            {
-                return BadRequest();
-            }
-
-            _context.Entry(user).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!UserExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
-        }
-
-        // POST: api/Users
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost]
-        public async Task<ActionResult<User>> PostUser(User user)
-        {
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetUser", new { id = user.Id }, user);
-        }
-
-        // DELETE: api/Users/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteUser(int id)
-        {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        private bool UserExists(int id)
-        {
-            return _context.Users.Any(e => e.Id == id);
-        }
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var u = await db.Users.FindAsync(id); if (u is null) return NotFound();
+        db.Users.Remove(u); await db.SaveChangesAsync(); return NoContent();
     }
 }
+

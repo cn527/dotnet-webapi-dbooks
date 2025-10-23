@@ -1,62 +1,63 @@
-using DBooks.WebApi.Models;
+using DBooks.WebApi.Data;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+// EF Core con reintentos (maneja “SQL aún no está listo”)
+builder.Services.AddDbContext<LibraryDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sql => sql.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorNumbersToAdd: null
+        )
+    )
+);
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddDbContext<TODOAppDbContext>(options =>
-{
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
-});
 
 var app = builder.Build();
 
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+else
+{
+    // opcional: servir Swagger también en prod para tu práctica
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
+app.MapControllers();
+
+// Aplicar migraciones con reintentos
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    var db = services.GetRequiredService<LibraryDbContext>();
 
-    try
+    const int maxAttempts = 10;
+    for (int attempt = 1; attempt <= maxAttempts; attempt++)
     {
-        var context = services.GetRequiredService<TODOAppDbContext>();
-        if (context.Database.GetPendingMigrations().Any())
+        try
         {
-            context.Database.Migrate();
+            db.Database.Migrate();
+            logger.LogInformation("Migraciones aplicadas correctamente.");
+            break;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "SQL no está listo (intento {Attempt}/{Max}). Esperando...", attempt, maxAttempts);
+            if (attempt == maxAttempts) throw;
+            await Task.Delay(TimeSpan.FromSeconds(5));
         }
     }
-    catch (Exception ex)
-    {
-        // Aquí puedes manejar cualquier error que pueda surgir, por ejemplo, utilizando un logger
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Un error ocurrió al aplicar las migraciones.");
-    }
 }
-
-
-
-//Configure the HTTP request pipeline.
-//if (app.Environment.IsDevelopment())
-//{
-app.UseSwagger();
-    app.UseSwaggerUI();
-//}
-
-
-app.UseRouting();
-app.UseEndpoints(endpoints =>
-{
-    endpoints.MapControllers();
-}
-);
-
-app.UseHttpsRedirection();
-
-
-
-
 
 app.Run();
